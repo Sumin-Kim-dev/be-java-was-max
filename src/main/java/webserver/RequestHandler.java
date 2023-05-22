@@ -1,5 +1,6 @@
 package webserver;
 
+import model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,8 +25,14 @@ public class RequestHandler implements Runnable {
             BufferedReader br = new BufferedReader(new InputStreamReader(in));
             String line = br.readLine();
             if (line == null) return;
-            String requestUrl = line.split(" ")[1];
+            Request request = Request.of(line);
             logger.debug("Request line : {}", line);
+
+            if (request.method.equals("GET") && request.query != null) {
+                User user = User.of(request.query);
+                logger.debug("User : {}", user);
+            }
+
             while (!line.equals("")) {
                 line = br.readLine();
                 logger.debug("Header : {}", line);
@@ -33,12 +40,12 @@ public class RequestHandler implements Runnable {
 
             DataOutputStream dos = new DataOutputStream(out);
             String basePath = "src/main/resources/";
-            if (requestUrl.endsWith(".html")) {
+            if (request.requestUrl.endsWith(".html")) {
                 basePath += "templates";
             } else {
                 basePath += "static";
             }
-            byte[] body = Files.readAllBytes(new File(basePath + requestUrl).toPath());
+            byte[] body = Files.readAllBytes(new File(basePath + request.requestUrl).toPath());
             response200Header(dos, body.length);
             responseBody(dos, body);
         } catch (IOException e) {
