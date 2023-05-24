@@ -3,6 +3,7 @@ package webserver;
 import model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import webserver.util.ResponseUtil;
 
 import java.io.*;
 import java.net.Socket;
@@ -28,7 +29,7 @@ public class RequestHandler implements Runnable {
             Request request = Request.of(line);
             logger.debug("Request line : {}", line);
 
-            if (request.method.equals("GET") && request.query != null) {
+            if (request.method.equals("GET") && request.requestUrl.endsWith("/user/create")) {
                 User user = User.of(request.query);
                 logger.debug("User : {}", user);
             }
@@ -39,24 +40,17 @@ public class RequestHandler implements Runnable {
             }
 
             DataOutputStream dos = new DataOutputStream(out);
-            String basePath = "src/main/resources/";
-            if (request.requestUrl.endsWith(".html")) {
-                basePath += "templates";
-            } else {
-                basePath += "static";
-            }
-            byte[] body = Files.readAllBytes(new File(basePath + request.requestUrl).toPath());
-            response200Header(dos, body.length);
-            responseBody(dos, body);
+            byte[] body = Files.readAllBytes(new File(ResponseUtil.getAbsolutePath(request.requestUrl)).toPath());
+            responseBody(dos, body, ResponseUtil.getType(request.requestUrl));
         } catch (IOException e) {
             logger.error(e.getMessage());
         }
     }
 
-    private void response200Header(DataOutputStream dos, int lengthOfBodyContent) {
+    private void response200Header(DataOutputStream dos, int lengthOfBodyContent, String type) {
         try {
             dos.writeBytes("HTTP/1.1 200 OK \r\n");
-            dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
+            dos.writeBytes("Content-Type: " + type + ";charset=utf-8\r\n");
             dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
             dos.writeBytes("\r\n");
         } catch (IOException e) {
@@ -64,8 +58,9 @@ public class RequestHandler implements Runnable {
         }
     }
 
-    private void responseBody(DataOutputStream dos, byte[] body) {
+    private void responseBody(DataOutputStream dos, byte[] body, String type) {
         try {
+            response200Header(dos, body.length, type);
             dos.write(body, 0, body.length);
             dos.flush();
         } catch (IOException e) {
